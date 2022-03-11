@@ -1,6 +1,3 @@
-from asyncio.windows_events import NULL
-from functools import partial
-from unicodedata import category
 from .serializers import RecipesCategorySerializer, RecipesListSerializer, CreateRecipesSerializer, RecipesDetailSerializer, UserSerializer, ingredientsPerServingSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -92,21 +89,18 @@ def getListRecipes(request):
     data = serializer.data
 
     if request.method == 'GET':
-        listdata=[]
         for i in range(len(data)):
             
             recipeCategory = RecipesCategory.objects.get(pk=data[i]['recipeCategoryId'])
             recipeCategorySerializer = RecipesCategorySerializer(recipeCategory)
             data[i]['recipeCategory'] = recipeCategorySerializer.data
-
-            listdata.append(data[i])
         return Response(
             {
                 "success": True,
                 "message":"Success",
                 "data": {
                     "total": recipesListCount,
-                    "recipes": listdata
+                    "recipes": data
                 }
             })
     
@@ -119,16 +113,17 @@ def getListRecipes(request):
             return Response({"success": False,"message":"name is required",})
         elif type(data['recipeCategoryId']) != int:
             return Response({"success": False,"message":"recipeCategoryId is required and must be integer",})
-        recipes = RecipeList.objects.create(
-            name=data['name'],
-            recipeCategoryId=RecipesCategory.objects.get(id=data['recipeCategoryId']),
-            image=data['image'],
-            nServing=data['nServing'],
-            ingredientsPerServing=ingredientsPerServing.objects.get(id=data['ingredientsPerServing']),
-            steps=data['steps']
-        )
-        serializer = CreateRecipesSerializer(recipes, many=True)
+        # recipes = RecipeList.objects.create(
+        #     name=data['name'],
+        #     recipeCategoryId=RecipesCategory.objects.get(id=data['recipeCategoryId']),
+        #     image=data['image'],
+        #     nServing=data['nServing'],
+        #     ingredientsPerServing=ingredientsPerServing.objects.get(id=data['ingredientsPerServing']),
+        #     # steps=data['steps'],
+        # )
+        # serializer = CreateRecipesSerializer(recipes, many=True)
         return Response({"success": True,"message":"Success","data":serializer.data})
+
 @api_view(['GET','PUT', 'DELETE'])
 def getDetailRecipes(request, pk):
 
@@ -147,12 +142,12 @@ def getDetailRecipes(request, pk):
         recipeCategory = RecipesCategory.objects.get(pk=data['recipeCategoryId'])
         recipeCategorySerializer = RecipesCategorySerializer(recipeCategory)
 
-        ingredientsPerServingData = ingredientsPerServing.objects.get(pk=data['id'])
+        ingredientsPerServingData = 1
         ingredientsPerServingDataSerializer = ingredientsPerServingSerializer(ingredientsPerServingData)
         
         data['recipeCategory'] = recipeCategorySerializer.data
         listIngredientsPerServing = []
-        listIngredientsPerServing.append(ingredientsPerServingDataSerializer.data)
+        # listIngredientsPerServing.append(ingredientsPerServingDataSerializer.data)
         data['ingredientsPerServing'] = listIngredientsPerServing
         listdata.append(data)
         return Response(

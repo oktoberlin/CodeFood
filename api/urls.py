@@ -6,6 +6,6 @@ urlpatterns = [
     path('recipe-categories', views.getAllRecipeCategory),
     path('recipe-categories/<int:pk>', views.CategoryAction),
     path('recipes', views.getListRecipes),
-    path('recipes/<int:pk>', views.getDetailRecipes),
+    path('recipes/<str:pk>', views.getDetailRecipes),
     path('user/', UserRecordView.as_view(), name='users'),
 ]

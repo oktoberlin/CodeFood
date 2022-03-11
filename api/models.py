@@ -17,7 +17,7 @@ class ingredientsPerServing(models.Model):
     value = models.IntegerField(default=0,null=False, blank=False)
 
     def __str__(self):
-        return self.pk
+        return self.item
 
 class Steps(models.Model):
     stepOrder = models.IntegerField(default=0,null=False, blank=False)
@@ -25,7 +25,7 @@ class Steps(models.Model):
     
 
     def __str__(self):
-        return self.pk
+        return self.stepOrder
 class RecipeList(models.Model):
     name = models.TextField()
     recipeCategoryId =  models.ForeignKey(RecipesCategory, related_name='recipeCategoryId',on_delete=models.SET_NULL, null=True, blank=False)

@@ -2,7 +2,7 @@ from pyexpat import model
 from django.contrib.auth.models import User
 from rest_framework.validators import UniqueTogetherValidator
 from rest_framework.serializers import ModelSerializer
-from .models import RecipesCategory, RecipeList, ingredientsPerServing
+from .models import RecipesCategory, RecipeList, Steps, ingredientsPerServing
 from rest_framework import serializers
 class UserSerializer(ModelSerializer):
 
@@ -50,23 +50,7 @@ class ingredientsPerServingSerializer(ModelSerializer):
         model = ingredientsPerServing
         fields = '__all__'
 
-class CoordinateField(serializers.Field):
-
-    def to_representation(self, value):
-        ret = {
-            "stepOrder": value.stepOrder,
-            "description": value.description
-        }
-        return ret
-
-    def to_internal_value(self, data):
-        ret = {
-            "stepOrder": data["stepOrder"],
-            "description": data["description"],
-        }
-        return ret
 class CreateRecipesSerializer(ModelSerializer):
-    steps = CoordinateField(source='*')
     class Meta:
         model = RecipeList
         fields = (
@@ -78,8 +62,20 @@ class CreateRecipesSerializer(ModelSerializer):
             'steps'
 
         )
+    def create(self, request, validated_data):
+        data=request.data
+        print(data)
+        stepOrder = data['steps'][0]['stepOrder']
+        description = data['steps'][0]['description']
+        steps, created = Steps.objects.get_or_create(stepOrder=stepOrder, description=description)
+        steps_instance = RecipeList.objects.create(**validated_data, name=data['name'],
+            recipeCategoryId=RecipesCategory.objects.get(id=data['recipeCategoryId']),
+            image=data['image'],
+            nServing=data['nServing'],
+            ingredientsPerServing=ingredientsPerServing.objects.get(id=data['ingredientsPerServing']),steps=steps)
+        return steps_instance
 class RecipesDetailSerializer(serializers.ModelSerializer):
-    
+   
     class Meta:
         model = RecipeList
         fields = (
@@ -88,6 +84,7 @@ class RecipesDetailSerializer(serializers.ModelSerializer):
             'recipeCategoryId',
             'image',
             'nServing',
+            'steps',
             'ingredientsPerServing',
             'nReactionLike',
             'nReactionNeutral',
@@ -96,4 +93,4 @@ class RecipesDetailSerializer(serializers.ModelSerializer):
             'updatedAt',
 
         )
-        
+    
