@@ -1,13 +1,69 @@
-from .serializers import RecipesCategorySerializer, RecipesListSerializer, CreateRecipesSerializer, RecipesDetailSerializer, UserSerializer, ingredientsPerServingSerializer
-from rest_framework.decorators import api_view
+from .serializers import RegistrationSerializer, RecipesCategorySerializer, RecipesListSerializer, CreateRecipesSerializer, RecipesDetailSerializer, UserSerializer, ingredientsPerServingSerializer, SearchRecipesSerializer
+from rest_framework.decorators import api_view,permission_classes
+from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import status
+from rest_framework import status, generics, filters
 from rest_framework.permissions import IsAdminUser
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model, logout
 from .models import RecipesCategory, RecipeList, Steps, ingredientsPerServing
 from rest_framework.parsers import FileUploadParser, MultiPartParser
+User = get_user_model()
 
+@permission_classes([AllowAny])
+class RegisterUser(APIView):
+    def post(self, request):
+        if request.data['username'] == '':
+            return Response({"success": False,"message":"username is required",})
+        elif request.data['password'] == '':
+            return Response({"success": False,"message":"password is required",})
+        elif len(request.data['password']) < 6:
+            return Response({"success": False,"message":"password minimum 6 characters",})
+        serializer = RegistrationSerializer(data=request.data)
+
+        if serializer.is_valid():
+        
+            serializer.save()
+            username = serializer.data['username']
+            user = User.objects.get(username=username)
+            
+            token, _ = Token.objects.get_or_create(user=user)
+            
+            return Response({"success": True,"message":"Success","data":{"id":user.id,"username":user.username}})
+        else:
+            return Response({"success": False,"message":"username "+request.data['username']+" already registered",})
+class CustomAuthToken(ObtainAuthToken):
+
+    def post(self, request, *args, **kwargs):
+        data=request.data
+        if request.data['username'] == '':
+            return Response({"success": False,"message":"username is required",})
+        elif request.data['password'] == '':
+            return Response({"success": False,"message":"password is required",})
+
+        
+        serializer = self.serializer_class(data=data,
+                                           context={'request': request})
+        
+        if not serializer.is_valid():
+            return Response({"success": False,"message":"Invalid username or Password"})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({"success": True,"message":"Success","data":{"token":token.key}})
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def User_logout(request):
+
+    request.user.auth_token.delete()
+
+    logout(request)
+
+    return Response('User Logged out successfully')
 class UserRecordView(APIView):
     
     permission_classes = [IsAdminUser]
@@ -174,3 +230,25 @@ def getDetailRecipes(request, pk):
     elif request.method == 'DELETE':
         recipes.delete()
         return Response({"success": True,"message": "Success","data": {}})
+
+
+@api_view(['GET'])
+def SearchRecipes(request):
+    
+    if request.method == 'GET':
+        print(request.GET.get('q', ''))
+        recipesList = RecipeList.objects.get(name__icontains=request.GET.get('q', ''))
+        serializer = SearchRecipesSerializer(recipesList)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"success": True,"message":"Success","data":serializer.data})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SearchRecipeListView(generics.ListAPIView):
+    queryset = RecipeList.objects.all()
+    serializer_class = SearchRecipesSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name',]
+
+

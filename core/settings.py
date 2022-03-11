@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
+from datetime import timedelta
 import os
 from pathlib import Path
 
@@ -83,7 +84,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'code_food',
+        'NAME': 'codeFoodDb',
         'USER': 'root',
         'PASSWORD': '',
         'HOST': 'localhost',
@@ -144,8 +145,10 @@ MEDIA_URL = '/media/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+AUTH_USER_MODEL='api.Users'
 
 REST_FRAMEWORK = {
+    'SEARCH_PARAM': 'q',
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
     ],
@@ -154,8 +157,8 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': [
-        # 'rest_framework.permissions.IsAuthenticated',
-        'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.IsAuthenticated',
+        # 'rest_framework.permissions.AllowAny',
     ],
 }
 
@@ -170,3 +173,6 @@ CORS_ALLOW_METHODS = [
 ]
 
 APPEND_SLASH=False
+
+AXES_FAILURE_LIMIT = 3
+AXES_COOLOFF_TIME = timedelta(seconds=60)

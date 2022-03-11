@@ -1,9 +1,33 @@
 from pyexpat import model
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+
 from rest_framework.validators import UniqueTogetherValidator
 from rest_framework.serializers import ModelSerializer
 from .models import RecipesCategory, RecipeList, Steps, ingredientsPerServing
 from rest_framework import serializers
+User = get_user_model()
+class RegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "password",
+
+        ]
+    def create(self, validated_data):
+        user = User.objects.create(
+            username=validated_data['username'],
+            
+        )
+
+        
+        user.set_password(validated_data['password'])
+        user.save()
+
+        return user
+
+
 class UserSerializer(ModelSerializer):
 
     def create(self, validated_data):
@@ -94,3 +118,12 @@ class RecipesDetailSerializer(serializers.ModelSerializer):
 
         )
     
+class SearchRecipesSerializer(serializers.ModelSerializer):
+   
+    class Meta:
+        model = RecipeList
+        fields = (
+            'id',
+            'name'
+
+        )
