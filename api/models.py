@@ -1,14 +1,11 @@
 from datetime import datetime
-from tokenize import Token
 from django.conf import settings
 from django.contrib.auth.models import (
     BaseUserManager, AbstractBaseUser
 )
 from django.db import models
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from rest_framework.authtoken.models import Token
-
+import string
+import random
 class MyAccountManager(BaseUserManager):
     def create_user(self, username, password=None):
         if not username:
@@ -33,7 +30,7 @@ class MyAccountManager(BaseUserManager):
         user.is_superuser = True
         user.save(using=self._db)
 
-class Users(AbstractBaseUser):
+class CustomUsers(AbstractBaseUser):
     username= models.CharField(max_length=30,unique=True, blank=True, null=True)
     is_admin = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -47,52 +44,66 @@ class Users(AbstractBaseUser):
     objects = MyAccountManager()
 
     def __str__(self):
-        return str(self.username)
+        return self.username
 
+    
 
     def has_perm(self, perm, obj=None): return self.is_superuser
 
     def has_module_perms(self, app_label): return self.is_superuser
 
 class RecipesCategory(models.Model):
-    # id = models.IntegerField(primary_key=True)
     name = models.TextField()
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(default=datetime.now)
 
     def __str__(self):
-        return self.pk
+        return self.name
 
-class ingredientsPerServing(models.Model):
-    item = models.TextField()
-    unit = models.TextField()
-    value = models.IntegerField(default=0,null=False, blank=False)
 
-    def __str__(self):
-        return self.item
 
-class Steps(models.Model):
-    stepOrder = models.IntegerField(default=0,null=False, blank=False)
-    description = models.CharField(max_length=100)
-    
-
-    def __str__(self):
-        return self.stepOrder
 class RecipeList(models.Model):
     name = models.TextField()
     recipeCategoryId =  models.ForeignKey(RecipesCategory, related_name='recipeCategoryId',on_delete=models.SET_NULL, null=True, blank=False)
     image = models.ImageField(upload_to='images',default='test.jpg',null=True, blank=True)
     nServing = models.IntegerField(default=1,null=False, blank=False)
-    ingredientsPerServing = models.ForeignKey(ingredientsPerServing,related_name='ingredientsPerServing',on_delete=models.SET_NULL, null=True, blank=False)
-    steps = models.ForeignKey(Steps,related_name='steps',on_delete=models.SET_NULL, null=True, blank=False)
     nReactionLike = models.IntegerField(default=0,null=False, blank=False)
     nReactionNeutral = models.IntegerField(default=0,null=False, blank=False)
     nReactionDislike = models.IntegerField(default=0,null=False, blank=False)
-    created_at=  models.DateTimeField(auto_now_add=True)
+    createdAt=  models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(default=datetime.now)
     
     def __str__(self):
         return self.name
    
     class Meta:
-        ordering = ['created_at']
+        ordering = ['createdAt']
+
+class Steps(models.Model):
+    recipeListId = models.ForeignKey(RecipeList,related_name='steps',on_delete=models.SET_NULL, null=True, blank=False)
+    stepOrder = models.IntegerField(default=0,null=False, blank=False)
+    description = models.CharField(max_length=100)
+    done = models.BooleanField(default=False)
+
+    def __str__(self):
+        return str(self.stepOrder)
+
+
+class ingredientsPerServing(models.Model):
+    recipeListId = models.ForeignKey(RecipeList,related_name='ingredientsPerServing',on_delete=models.SET_NULL, null=True, blank=False)
+    item = models.TextField()
+    unit = models.CharField(max_length=50)
+    value = models.IntegerField(default=0,null=False, blank=False)
+
+    def __str__(self):
+        return self.item
+
+def id_generator(size=4, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
+class ServeHistory(models.Model):
+    
+    id = models.CharField(max_length=4, unique=True, primary_key=True, default=id_generator(), editable=False)
+    recipeId = models.ForeignKey(RecipeList,related_name='serveHistory',on_delete=models.SET_NULL, null=True, blank=False)
+    userId = models.ForeignKey(settings.AUTH_USER_MODEL,related_name='userId',on_delete=models.SET_NULL, null=True, blank=False)
+    def __str__(self):
+        return self.id

@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 
 from rest_framework.validators import UniqueTogetherValidator
 from rest_framework.serializers import ModelSerializer
-from .models import RecipesCategory, RecipeList, Steps, ingredientsPerServing
+from .models import RecipesCategory, RecipeList, Steps, ingredientsPerServing, ServeHistory
 from rest_framework import serializers
 User = get_user_model()
 class RegistrationSerializer(serializers.ModelSerializer):
@@ -69,11 +69,26 @@ class RecipesListSerializer(serializers.ModelSerializer):
 
         )
         
-class ingredientsPerServingSerializer(ModelSerializer):
+class CreateIngredientsPerServingSerializer(ModelSerializer):
     class Meta:
         model = ingredientsPerServing
-        fields = '__all__'
+        fields = (
+            'item',
+            'unit',
+            'value'
 
+        )
+
+
+class CreateStepsSerializer(ModelSerializer):
+    class Meta:
+        model = Steps
+        fields = (
+            'stepOrder',
+            'description',
+
+        )
+    
 class CreateRecipesSerializer(ModelSerializer):
     class Meta:
         model = RecipeList
@@ -83,21 +98,9 @@ class CreateRecipesSerializer(ModelSerializer):
             'image',
             'nServing',
             'ingredientsPerServing',
-            'steps'
+            # 'steps'
 
         )
-    def create(self, request, validated_data):
-        data=request.data
-        print(data)
-        stepOrder = data['steps'][0]['stepOrder']
-        description = data['steps'][0]['description']
-        steps, created = Steps.objects.get_or_create(stepOrder=stepOrder, description=description)
-        steps_instance = RecipeList.objects.create(**validated_data, name=data['name'],
-            recipeCategoryId=RecipesCategory.objects.get(id=data['recipeCategoryId']),
-            image=data['image'],
-            nServing=data['nServing'],
-            ingredientsPerServing=ingredientsPerServing.objects.get(id=data['ingredientsPerServing']),steps=steps)
-        return steps_instance
 class RecipesDetailSerializer(serializers.ModelSerializer):
    
     class Meta:
@@ -108,8 +111,6 @@ class RecipesDetailSerializer(serializers.ModelSerializer):
             'recipeCategoryId',
             'image',
             'nServing',
-            'steps',
-            'ingredientsPerServing',
             'nReactionLike',
             'nReactionNeutral',
             'nReactionDislike',
@@ -126,4 +127,13 @@ class SearchRecipesSerializer(serializers.ModelSerializer):
             'id',
             'name'
 
+        )
+
+class ServeHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServeHistory
+        fields = (
+            'id',
+            'recipeId',
+            'userId'
         )

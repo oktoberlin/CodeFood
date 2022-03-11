@@ -1,4 +1,5 @@
-from .serializers import RegistrationSerializer, RecipesCategorySerializer, RecipesListSerializer, CreateRecipesSerializer, RecipesDetailSerializer, UserSerializer, ingredientsPerServingSerializer, SearchRecipesSerializer
+import base64
+from .serializers import RegistrationSerializer, RecipesCategorySerializer, RecipesListSerializer, CreateRecipesSerializer, CreateStepsSerializer, RecipesDetailSerializer, UserSerializer, CreateIngredientsPerServingSerializer, SearchRecipesSerializer, ServeHistorySerializer
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -8,7 +9,7 @@ from rest_framework.views import APIView
 from rest_framework import status, generics, filters
 from rest_framework.permissions import IsAdminUser
 from django.contrib.auth import get_user_model, logout
-from .models import RecipesCategory, RecipeList, Steps, ingredientsPerServing
+from .models import RecipesCategory, RecipeList, Steps, ingredientsPerServing, ServeHistory
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 User = get_user_model()
 
@@ -169,16 +170,35 @@ def getListRecipes(request):
             return Response({"success": False,"message":"name is required",})
         elif type(data['recipeCategoryId']) != int:
             return Response({"success": False,"message":"recipeCategoryId is required and must be integer",})
-        # recipes = RecipeList.objects.create(
-        #     name=data['name'],
-        #     recipeCategoryId=RecipesCategory.objects.get(id=data['recipeCategoryId']),
-        #     image=data['image'],
-        #     nServing=data['nServing'],
-        #     ingredientsPerServing=ingredientsPerServing.objects.get(id=data['ingredientsPerServing']),
-        #     # steps=data['steps'],
-        # )
-        # serializer = CreateRecipesSerializer(recipes, many=True)
-        return Response({"success": True,"message":"Success","data":serializer.data})
+        recipes = RecipeList.objects.create(
+            name=data['name'],
+            recipeCategoryId=RecipesCategory.objects.get(id=data['recipeCategoryId']),
+            image=data['image'],
+            nServing=data['nServing'],
+        )
+        recipesSerializer = CreateRecipesSerializer(recipes)
+        dataJson= recipesSerializer.data
+
+        for item in data['ingredientsPerServing']:
+            ingredientsPerServing.objects.create(
+                recipeListId=RecipeList.objects.get(id=recipes.id),
+                item=item['item'],
+                unit=item['unit'],
+                value=item['value']
+            )
+        ingredientsPerServingObjects = ingredientsPerServing.objects.filter(recipeListId=recipes.id)
+        ingredientsPerServingSerializer=CreateIngredientsPerServingSerializer(ingredientsPerServingObjects, many=True)
+        dataJson['ingredientsPerServing'] = ingredientsPerServingSerializer.data
+        for item in data['steps']:
+            Steps.objects.create(
+                recipeListId=RecipeList.objects.get(id=recipes.id),
+                stepOrder=item['stepOrder'],
+                description=item['description'],
+            )
+        stepsObjects = Steps.objects.filter(recipeListId=recipes.id)
+        stepSerializer = CreateStepsSerializer(stepsObjects, many=True)
+        dataJson['steps'] = stepSerializer.data
+        return Response({"success": True,"message":"Success","data":dataJson})
 
 @api_view(['GET','PUT', 'DELETE'])
 def getDetailRecipes(request, pk):
@@ -189,31 +209,30 @@ def getDetailRecipes(request, pk):
         return Response({"success": False,"message":"Recipe with id "+ str(pk)+" not found",})
     
     if request.method == 'GET':
-        recipesListCount = RecipeList.objects.all().count()
         serializer = RecipesDetailSerializer(recipes, many=False)
         data = serializer.data
 
-        listdata=[]
-        
+        ingredientsPerServingObjects=ingredientsPerServing.objects.filter(recipeListId=recipes.id)
+        # if request.GET.get('nServing') > 1:
+
+        ingredientsPerServingSerializer = CreateIngredientsPerServingSerializer(ingredientsPerServingObjects, many=True)
+        data['ingredientsPerServing'] = ingredientsPerServingSerializer.data
+
+        stepsObjects = Steps.objects.filter(recipeListId=recipes.id)
+        stepsSerializer = CreateStepsSerializer(stepsObjects, many=True)
+        data['steps'] = stepsSerializer.data
+
         recipeCategory = RecipesCategory.objects.get(pk=data['recipeCategoryId'])
         recipeCategorySerializer = RecipesCategorySerializer(recipeCategory)
-
-        ingredientsPerServingData = 1
-        ingredientsPerServingDataSerializer = ingredientsPerServingSerializer(ingredientsPerServingData)
-        
         data['recipeCategory'] = recipeCategorySerializer.data
-        listIngredientsPerServing = []
-        # listIngredientsPerServing.append(ingredientsPerServingDataSerializer.data)
-        data['ingredientsPerServing'] = listIngredientsPerServing
-        listdata.append(data)
+        
+
+        # data['ingredientsPerServing'] = listIngredientsPerServing
         return Response(
             {
                 "success": True,
                 "message":"Success",
-                "data": {
-                    "total": recipesListCount,
-                    "recipes": listdata
-                }
+                "data": data
             })
 
     elif request.method == 'PUT':
@@ -224,13 +243,117 @@ def getDetailRecipes(request, pk):
         serializer = RecipesDetailSerializer(recipes, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response({"success": True,"message":"Success","data":serializer.data})
+            
+            dataJson=serializer.data
+            ingredientsPerServingObjects=ingredientsPerServing.objects.filter(recipeListId=recipes.id)
+            ingredientsPerServingSerializer = CreateIngredientsPerServingSerializer(ingredientsPerServingObjects, many=True)
+            dataJson['ingredientsPerServing'] = ingredientsPerServingSerializer.data
+
+            stepsObjects = Steps.objects.filter(recipeListId=recipes.id)
+            stepsSerializer = CreateStepsSerializer(stepsObjects, many=True)
+            dataJson['steps'] = stepsSerializer.data
+            return Response({"success": True,"message":"Success","data":dataJson})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         recipes.delete()
         return Response({"success": True,"message": "Success","data": {}})
 
+@api_view(['GET'])
+def getListRecipesSteps(request, pk):
+    if request.method == 'GET':
+        recipesList = Steps.objects.filter(recipeListId=pk)
+        serializer = CreateStepsSerializer(recipesList, many=True)
+        data = serializer.data
+        return Response(
+            {
+                "success": True,
+                "message":"Success",
+                "data": data
+            })
+
+
+@api_view(['GET'])
+def getListServeHistory(request):
+    serveHistoryList = ServeHistory.objects.all()
+    serveHistoryListCount = ServeHistory.objects.all().count()
+    serveHistoryListSerializer = ServeHistorySerializer(serveHistoryList, many=True)
+    data = serveHistoryListSerializer.data
+
+    if request.user.is_authenticated:
+    
+        if request.method == 'GET':
+            for i in range(len(data)):
+                recipeData = RecipeList.objects.get(id=data[i]['recipeId'])
+                data[i]['recipeName'] = recipeData.name
+                data[i]['recipeCategoryName'] = recipeData.recipeCategoryId.name
+                data[i]['recipeImage'] = recipeData.image.url
+
+                stepData = Steps.objects.filter(recipeListId=data[i]['recipeId']).count()
+                data[i]['nStep'] = stepData
+                data[i]['createdAt'] = recipeData.createdAt
+                data[i]['updatedAt'] = recipeData.updatedAt
+
+                
+                # nStep
+                # nStepDone
+                
+                # recipeCategory = RecipesCategory.objects.get(pk=data[i]['recipeCategoryId'])
+                # recipeCategorySerializer = RecipesCategorySerializer(recipeCategory)
+                # data[i]['recipeCategory'] = recipeCategorySerializer.data
+            return Response(
+                {
+                    "success": True,
+                    "message":"Success",
+                    "data": {
+                        "total": serveHistoryListCount,
+                        "history": data
+                    }
+                })
+    else:
+        return Response(
+            {
+                "success": True,
+                "message":"Unauthorized",
+            })
+    # # Create Recipes
+    # elif request.method == 'POST':
+    #     parser_class = (FileUploadParser, MultiPartParser,)
+    
+    #     data = request.data
+    #     if data['name'] == '':
+    #         return Response({"success": False,"message":"name is required",})
+    #     elif type(data['recipeCategoryId']) != int:
+    #         return Response({"success": False,"message":"recipeCategoryId is required and must be integer",})
+    #     recipes = RecipeList.objects.create(
+    #         name=data['name'],
+    #         recipeCategoryId=RecipesCategory.objects.get(id=data['recipeCategoryId']),
+    #         image=data['image'],
+    #         nServing=data['nServing'],
+    #     )
+    #     recipesSerializer = CreateRecipesSerializer(recipes)
+    #     dataJson= recipesSerializer.data
+
+    #     for item in data['ingredientsPerServing']:
+    #         ingredientsPerServing.objects.create(
+    #             recipeListId=RecipeList.objects.get(id=recipes.id),
+    #             item=item['item'],
+    #             unit=item['unit'],
+    #             value=item['value']
+    #         )
+    #     ingredientsPerServingObjects = ingredientsPerServing.objects.filter(recipeListId=recipes.id)
+    #     ingredientsPerServingSerializer=CreateIngredientsPerServingSerializer(ingredientsPerServingObjects, many=True)
+    #     dataJson['ingredientsPerServing'] = ingredientsPerServingSerializer.data
+    #     for item in data['steps']:
+    #         Steps.objects.create(
+    #             recipeListId=RecipeList.objects.get(id=recipes.id),
+    #             stepOrder=item['stepOrder'],
+    #             description=item['description'],
+    #         )
+    #     stepsObjects = Steps.objects.filter(recipeListId=recipes.id)
+    #     stepSerializer = CreateStepsSerializer(stepsObjects, many=True)
+    #     dataJson['steps'] = stepSerializer.data
+    #     return Response({"success": True,"message":"Success","data":dataJson})
 
 @api_view(['GET'])
 def SearchRecipes(request):
