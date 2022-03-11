@@ -9,18 +9,15 @@ class RecipesCategory(models.Model):
     updatedAt = models.DateTimeField(default=datetime.now)
 
     def __str__(self):
-        return self.name
-    
-    @property
-    def my_field(self):
-        return self.name
+        return self.pk
+
 class ingredientsPerServing(models.Model):
     item = models.TextField()
     unit = models.TextField()
     value = models.IntegerField(default=0,null=False, blank=False)
 
     def __str__(self):
-        return self.item
+        return self.pk
 
 class Steps(models.Model):
     stepOrder = models.IntegerField(default=0,null=False, blank=False)
@@ -28,11 +25,11 @@ class Steps(models.Model):
     
 
     def __str__(self):
-        return self.description
+        return self.pk
 class RecipeList(models.Model):
     name = models.TextField()
-    recipeCategoryId =  models.ForeignKey(RecipesCategory, related_name='category_id',on_delete=models.SET_NULL, null=True, blank=False)
-    image = models.ImageField(upload_to='images',default='test.jpg',null=False, blank=False)
+    recipeCategoryId =  models.ForeignKey(RecipesCategory, related_name='recipeCategoryId',on_delete=models.SET_NULL, null=True, blank=False)
+    image = models.ImageField(upload_to='images',default='test.jpg',null=True, blank=True)
     nServing = models.IntegerField(default=1,null=False, blank=False)
     ingredientsPerServing = models.ForeignKey(ingredientsPerServing,related_name='ingredientsPerServing',on_delete=models.SET_NULL, null=True, blank=False)
     steps = models.ForeignKey(Steps,related_name='steps',on_delete=models.SET_NULL, null=True, blank=False)
