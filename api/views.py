@@ -1,12 +1,14 @@
-from .serializers import UserSerializer
+from asyncio.windows_events import NULL
+from functools import partial
+from unicodedata import category
+from .serializers import RecipesCategorySerializer, RecipesListSerializer, RecipesDetailSerializer, UserSerializer, ingredientsPerServingSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser
 from django.contrib.auth.models import User
-from .serializers import ListFoodSerializer
-from .models import ListFood
+from .models import RecipesCategory, RecipeList, ingredientsPerServing
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 
 class UserRecordView(APIView):
@@ -44,28 +46,127 @@ def getRoutes(request):
 
     return Response(routes)
 
+
+@api_view(['GET','POST'])
+def getAllRecipeCategory(request):
+    if request.method == 'GET':
+        snippets = RecipesCategory.objects.all()
+        serializer = RecipesCategorySerializer(snippets, many=True)
+        return Response({"success": True,"message":"Success","data":serializer.data})
+
+    elif request.method == 'POST':
+        if request.data['name'] == '':
+            return Response({"success": False,"message":"name is required",})
+        serializer = RecipesCategorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"success": True,"message":"Success","data":serializer.data})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+@api_view(['PUT', 'DELETE'])
+def CategoryAction(request, pk):
+    try:
+        category = RecipesCategory.objects.get(pk=pk)
+    except RecipesCategory.DoesNotExist:
+        return Response({"success": False,"message":"Recipe Category with id "+ str(pk)+" not found",})
+
+    if request.method == 'PUT':
+        if request.data['name'] == '':
+            return Response({"success": False,"message":"name is required",})
+        serializer = RecipesCategorySerializer(category, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"success": True,"message":"Success","data":serializer.data})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        category.delete()
+        return Response({"success": True,"message": "Success","data": {}})
+
 @api_view(['GET'])
-def getFoodLists(request):
-    foodList = ListFood.objects.all()
+def getListRecipes(request):
+    recipesList = RecipeList.objects.all()
+    recipesListCount = RecipeList.objects.all().count()
+    serializer = RecipesListSerializer(recipesList, many=True)
+    data = serializer.data
 
-    serializer = ListFoodSerializer(foodList, many=True)
-    return Response(serializer.data)
+    listdata=[]
+    for i in range(len(data)):
+        
+        recipeCategory = RecipesCategory.objects.get(pk=data[i]['recipeCategoryId'])
+        recipeCategorySerializer = RecipesCategorySerializer(recipeCategory)
+        data[i]['recipeCategory'] = recipeCategorySerializer.data
 
-@api_view(['GET'])
-def getFood(request, pk):
-    food = ListFood.objects.get(id=pk)
+        listdata.append(data[i])
+    return Response(
+        {
+            "success": True,
+            "message":"Success",
+            "data": {
+                "total": recipesListCount,
+                "recipes": listdata
+            }
+        })
 
-    serializer = ListFoodSerializer(food, many=False)
-    return Response(serializer.data)
+@api_view(['GET','PUT', 'DELETE'])
+def getDetailRecipes(request, pk):
+
+    try:
+        recipes = RecipeList.objects.get(id=pk)
+    except RecipeList.DoesNotExist:
+        return Response({"success": False,"message":"Recipe with id "+ str(pk)+" not found",})
+    if request.method == 'GET':
+        recipesListCount = RecipeList.objects.all().count()
+        serializer = RecipesDetailSerializer(recipes, many=False)
+        data = serializer.data
+
+        listdata=[]
+        
+        recipeCategory = RecipesCategory.objects.get(pk=data['recipeCategoryId'])
+        recipeCategorySerializer = RecipesCategorySerializer(recipeCategory)
+
+        ingredientsPerServingData = ingredientsPerServing.objects.get(pk=data['id'])
+        ingredientsPerServingDataSerializer = ingredientsPerServingSerializer(ingredientsPerServingData)
+        
+        data['recipeCategory'] = recipeCategorySerializer.data
+        listIngredientsPerServing = []
+        listIngredientsPerServing.append(ingredientsPerServingDataSerializer.data)
+        data['ingredientsPerServing'] = listIngredientsPerServing
+        listdata.append(data)
+        return Response(
+            {
+                "success": True,
+                "message":"Success",
+                "data": {
+                    "total": recipesListCount,
+                    "recipes": listdata
+                }
+            })
+
+    elif request.method == 'PUT':
+        if request.data['name'] == '':
+            return Response({"success": False,"message":"name is required",})
+        elif type(request.data['recipeCategoryId']) != int:
+            return Response({"success": False,"message":"recipeCategoryId is required and must be integer",})
+        serializer = RecipesDetailSerializer(recipes, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"success": True,"message":"Success","data":serializer.data})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        recipes.delete()
+        return Response({"success": True,"message": "Success","data": {}})
+
 
 @api_view(['POST'])
-def createFood(request):
+def createRecipes(request):
     parser_class = (FileUploadParser, MultiPartParser,)
     
     data = request.data
-    #images = request.FILES.getlist(data['imagePaths'])
-    #for image in images:
-    note = ListFood.objects.create(
+    
+    recipes = RecipeList.objects.create(
         
         name=data['name'],
         thumbnail=data['thumbnail'],
@@ -74,21 +175,21 @@ def createFood(request):
         createdTime=data['createdTime']
         
     )
-    serializer = ListFoodSerializer(note, many=False)
-    return Response(serializer.data)
+    serializer = RecipesListSerializer(recipes, many=False)
+    return Response({"success": True,"message":"Success","data":serializer.data})
 
 @api_view(['PUT'])
-def updateFood(request, pk):
+def updateRecipes(request, pk):
     data = request.data
-    note = ListFood.objects.get(id=pk)
-    serializer = ListFoodSerializer(note, data=data, partial=True)
+    recipes = RecipeList.objects.get(id=pk)
+    serializer = RecipesListSerializer(recipes = recipes, data=data, partial=True)
     
     if serializer.is_valid():
         serializer.save()
-    return Response(serializer.data)
+    return Response({"success": True,"message":"Success","data":serializer.data})
 
 @api_view(['DELETE'])
-def deleteFood(request,pk):
-    note = ListFood.objects.get(id=pk)
-    note.delete()
-    return Response('Food was deleted')
+def deleteRecipe(request,pk):
+    recipes = RecipeList.objects.get(id=pk)
+    recipes.delete()
+    return Response({"success": True,"message": "Success","data": {}})
