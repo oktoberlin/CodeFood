@@ -91,6 +91,7 @@ class UserRecordView(APIView):
         )
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def getRoutes(request):
     routes = [
         {
