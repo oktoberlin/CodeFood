@@ -12,6 +12,7 @@ urlpatterns = [
     path('recipes/<str:pk>', views.getDetailRecipes),
     path('recipes/<str:pk>/steps', views.getListRecipesSteps),
     path('serve-histories', views.getListServeHistory),
+    path('serve-histories/<str:name>/done-step', views.updateStepDone),
     path('search/recipes', SearchRecipeListView.as_view()),
     path('user/', UserRecordView.as_view(), name='users'),
 ]

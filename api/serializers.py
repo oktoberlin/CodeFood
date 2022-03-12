@@ -88,7 +88,15 @@ class CreateStepsSerializer(ModelSerializer):
             'description',
 
         )
-    
+class ListStepsSerializer(ModelSerializer):
+    class Meta:
+        model = Steps
+        fields = (
+            'stepOrder',
+            'description',
+            'done'
+
+        )   
 class CreateRecipesSerializer(ModelSerializer):
     class Meta:
         model = RecipeList

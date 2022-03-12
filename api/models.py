@@ -103,7 +103,7 @@ def id_generator(size=4, chars=string.ascii_uppercase + string.digits):
 class ServeHistory(models.Model):
     
     id = models.CharField(max_length=4, unique=True, primary_key=True, default=id_generator(), editable=False)
-    recipeId = models.ForeignKey(RecipeList,related_name='serveHistory',on_delete=models.SET_NULL, null=True, blank=False)
+    recipeId = models.ForeignKey(RecipeList,related_name='serveHistory',on_delete=models.SET_NULL, null=True, blank=False, default="")
     userId = models.ForeignKey(settings.AUTH_USER_MODEL,related_name='userId',on_delete=models.SET_NULL, null=True, blank=False)
     def __str__(self):
         return self.id
