@@ -94,12 +94,22 @@ class UserRecordView(APIView):
 def getRoutes(request):
     routes = [
         {
-            'Endpoint': '/recipes/create/'
+            'Register User': '/auth/register',
+            'Login User': '/auth/login',
+            'Recipe Categories List': '/recipe-categories',
+            'Recipe Category Detail': '/recipe-categories/<int:pk>',
+            'Recipes List': '/recipes',
+            'Recipes Detail': '/recipes/<str:pk>',
+            'Recipes Detail Step': '/recipes/<str:pk>/steps',
+            'Serve History List': '/serve-histories',
+            'Serve History Detail Step Done': '/serve-histories/<str:name>/done-step',
+            'Search Recipes': '/search/recipes'
+
         }
     ]
+    
 
     return Response(routes)
-
 
 @api_view(['GET','POST'])
 def getAllRecipeCategory(request):
@@ -375,20 +385,11 @@ def updateStepDone(request, name):
             serializer.save()
             
             dataJson=serializer.data
-            # serveHistory.done = True
-            # serveHistory.save()
-            # ingredientsPerServingObjects=ingredientsPerServing.objects.filter(recipeListId=serveHistory.id)
-            # ingredientsPerServingSerializer = CreateIngredientsPerServingSerializer(ingredientsPerServingObjects, many=True)
-            # dataJson['ingredientsPerServing'] = ingredientsPerServingSerializer.data
-            # stepUpdate = Steps.objects.get(recipeListId=dataJson['recipeId'])[0]
-            # stepUpdate.done = True
-            # stepUpdate.save()
+            
             stepsObjects = Steps.objects.filter(recipeListId=dataJson['recipeId'])
 
             stepsObjects[request.data['stepOrder']-1].done = True
             stepsObjects[request.data['stepOrder']-1].save()
-            print(stepsObjects[request.data['stepOrder']-1].done)
-            # stepsObjects[0].save()
             stepsSerializer = ListStepsSerializer(stepsObjects, many=True)
             dataJson['steps'] = stepsSerializer.data
             return Response({"success": True,"message":"Success","data":dataJson})
